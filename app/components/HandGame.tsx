@@ -7,6 +7,14 @@ type Move = "STONE" | "PAPER" | "SCISSORS" | "";
 
 const MOVES: Move[] = ["STONE", "PAPER", "SCISSORS"];
 
+/* =========================
+   🔊 ADDED: Audio play helper
+   ========================= */
+function playAudio(src: string) {
+  const audio = new Audio(src);
+  audio.play().catch(() => { });
+}
+
 export default function HandGame() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -22,26 +30,55 @@ export default function HandGame() {
   const [countdown, setCountdown] = useState(3);
   const [canPlay, setCanPlay] = useState(false);
 
+  /* =========================
+    📝 ADDED: Countdown word
+    ========================= */
+  const [countdownWord, setCountdownWord] = useState("");
+
   // ⏱️ Countdown between rounds
   useEffect(() => {
     roundLockedRef.current = true;
     setCanPlay(false);
     setCountdown(3);
 
+    /* =========================
+       📝 ADDED: Start with STONE
+       🔧 FIX: delayed audio so browser allows it
+       ========================= */
+    setCountdownWord("STONE");
+    setTimeout(() => {
+      playAudio("/audio/stone.mp3");
+    }, 5); // ⬅️ important delay
+
     const interval = setInterval(() => {
       setCountdown((prev) => {
+        if (prev === 3) {
+          setCountdownWord("PAPER");
+          playAudio("/audio/paper.mp3");
+          return 2;
+        }
+
+        if (prev === 2) {
+          setCountdownWord("SCISSORS");
+          playAudio("/audio/scissors.mp3");
+          return 1;
+        }
+
         if (prev === 1) {
           clearInterval(interval);
           roundLockedRef.current = false; // 🔓 unlock exactly once
           setCanPlay(true);
+          setCountdownWord("");
           return 0;
         }
-        return prev - 1;
+
+        return prev;
       });
     }, 1000);
 
     return () => clearInterval(interval);
   }, [playerScore, computerScore]);
+
 
   // 🎥 MediaPipe setup
   useEffect(() => {
@@ -91,7 +128,7 @@ export default function HandGame() {
     return () => camera.stop();
   }, []);
 
-  // 🎮 Game logic
+  // 🎮 Game logic (UNCHANGED)
   function playGame(player: Move) {
     const computer =
       MOVES[Math.floor(Math.random() * MOVES.length)];
@@ -126,41 +163,48 @@ export default function HandGame() {
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="relative">
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className="rounded-lg border"
-        />
+    <div className="game-card">
+      <div className="game-layout">
+        {/* CAMERA */}
+        <div className="camera-panel">
+          <div className="camera-wrapper">
+            <video ref={videoRef} autoPlay playsInline muted />
 
-        {!canPlay && countdown > 0 && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
-            <span className="text-white text-6xl font-bold">
-              {countdown}
-            </span>
+            {!canPlay && countdown > 0 && (
+              <div className="countdown-overlay flex flex-col gap-2">
+                <span className="countdown-text">{countdown}</span>
+
+                {/* =========================
+                    📝 ADDED: STONE / PAPER / SCISSORS text
+                   ========================= */}
+                <span className="text-xl font-bold tracking-widest">
+                  {countdownWord}
+                </span>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* INFO */}
+        <div className="info-panel">
+          <h1 className="game-title">Stone Paper Scissors 🎮</h1>
+
+          <div className="moves-box">
+            <p>🧍 <strong>You:</strong> {playerMove || "-"}</p>
+            <p>💻 <strong>Computer:</strong> {computerMove || "-"}</p>
+          </div>
+
+          <h2 className="status-text">
+            {result || "Make your move!"}
+          </h2>
+
+          <p className="score-text">
+            You {playerScore} : {computerScore} Computer
+          </p>
+
+          <button onClick={resetGame}>Restart Game</button>
+        </div>
       </div>
-
-      <div className="text-center">
-        <p>🧍 You: {playerMove || "-"}</p>
-        <p>💻 Computer: {computerMove || "-"}</p>
-        <h2 className="text-xl font-bold mt-2">{result}</h2>
-      </div>
-
-      <p className="font-semibold">
-        Score → You: {playerScore} | Computer: {computerScore}
-      </p>
-
-      <button
-        onClick={resetGame}
-        className="px-4 py-2 bg-black text-white rounded"
-      >
-        Reset Game
-      </button>
     </div>
   );
 }
